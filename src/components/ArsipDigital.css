@@ -1,0 +1,201 @@
+.arsip-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.arsip-header {
+  margin-bottom: 4px;
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Filter Box */
+.arsip-filter-box {
+  background-color: var(--white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group.lg {
+  flex: 1;
+}
+
+.filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4b5563;
+  letter-spacing: 0.05em;
+}
+
+.input-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon-left {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+}
+
+.arsip-search-input {
+  width: 100%;
+  padding: 10px 10px 10px 36px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.arsip-search-input:focus {
+  border-color: var(--primary);
+}
+
+.arsip-search-input::placeholder {
+  color: #9ca3af;
+}
+
+.arsip-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.arsip-dropdown select {
+  appearance: none;
+  background-color: var(--white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 36px 10px 14px;
+  font-size: 13px;
+  color: #374151;
+  outline: none;
+  min-width: 160px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.arsip-dropdown select:focus {
+  border-color: var(--primary);
+}
+
+.dropdown-caret {
+  position: absolute;
+  right: 12px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+/* Table */
+.arsip-table-container {
+  background-color: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+}
+
+.arsip-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.arsip-table th {
+  background-color: #f8fafc;
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.arsip-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+
+.arsip-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.no-agenda {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.no-surat {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.judul-surat {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.perihal-surat-small {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.badge-klasifikasi {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  display: inline-block;
+}
+
+.aksi-icons {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.icon-action {
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.icon-action:hover {
+  color: #0f172a;
+}
+
+.icon-action.dark {
+  color: #475569;
+}
