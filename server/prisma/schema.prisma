@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  username  String   @unique
+  password  String
+  role      String   // Level 1-7 or specific names like "admin-pusat", "rektor", "dekan", dll.
+  
+  // Relations
+  disposisiMasuk  Disposisi[] @relation("PenerimaDisposisi")
+  disposisiKeluar Disposisi[] @relation("PengirimDisposisi")
+  suratKeluar     SuratKeluar[]
+  produkHukum     ProdukHukum[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SuratMasuk {
+  id          String   @id @default(uuid())
+  noAgenda    String?  @unique
+  tanggal     DateTime
+  noSurat     String
+  perihal     String
+  asal        String
+  sifat       String   // Biasa, Penting, Segera
+  status      String   @default("Menunggu Disposisi") // Menunggu Disposisi, Proses, Selesai
+  attachment  String?
+
+  disposisi   Disposisi[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Disposisi {
+  id           String   @id @default(uuid())
+  arahan       String
+  batasWaktu   DateTime?
+  status       String   @default("Menunggu Tindak Lanjut") // Menunggu Tindak Lanjut, Selesai
+
+  suratMasukId String
+  suratMasuk   SuratMasuk @relation(fields: [suratMasukId], references: [id])
+
+  pengirimId   String
+  pengirim     User @relation("PengirimDisposisi", fields: [pengirimId], references: [id])
+
+  penerimaId   String
+  penerima     User @relation("PenerimaDisposisi", fields: [penerimaId], references: [id])
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SuratKeluar {
+  id          String   @id @default(uuid())
+  noAgenda    String?  @unique
+  tanggal     DateTime @default(now())
+  noSurat     String?  // Akan diisi setelah verifikasi
+  perihal     String
+  tujuan      String
+  sifat       String
+  status      String   @default("Draft") // Draft, Review, Menunggu Penomoran, Menunggu TTE, Selesai
+  attachment  String?
+  
+  authorId    String
+  author      User @relation(fields: [authorId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProdukHukum {
+  id          String   @id @default(uuid())
+  noRegister  String?  @unique
+  jenis       String   // Peraturan Rektor, Keputusan Rektor, Surat Edaran, dll
+  judul       String
+  tentang     String
+  status      String   @default("Draft") // Draft, Harmonisasi, Paraf, TTE Rektor, Selesai
+  attachment  String?
+
+  authorId    String
+  author      User @relation(fields: [authorId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

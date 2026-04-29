@@ -1,69 +1,110 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
+import { useAuth } from './contexts/AuthContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Breadcrumb from './components/Breadcrumb'
-import AuthPage from './components/AuthPage'
-import MainDashboard from './components/MainDashboard'
-import SuratMasuk from './components/SuratMasuk'
-import SuratDetail from './components/SuratDetail'
-import SuratKeluar from './components/SuratKeluar'
-import SuratKeluarDetail from './components/SuratKeluarDetail'
-import ArsipDigital from './components/ArsipDigital'
-import ProdukHukum from './components/ProdukHukum'
-import UserManagement from './components/UserManagement'
-import UserDetail from './components/UserDetail'
-import PersetujuanAkhir from './components/PersetujuanAkhir'
-import BuatProdukHukum from './components/BuatProdukHukum'
-import HarmonisasiReview from './components/HarmonisasiReview'
-import TrackingPage from './components/TrackingPage'
-import RoleConfig from './components/RoleConfig'
-import SystemLogs from './components/SystemLogs'
-import BHDashboard from './components/BHDashboard'
-import BHPengaturan from './components/BHPengaturan'
+import AuthPage from './views/AuthPage'
+import LandingPage from './views/LandingPage'
+import MainDashboard from './views/MainDashboard'
+import SuratMasuk from './views/SuratMasuk'
+import SuratDetail from './views/SuratDetail'
+import SuratKeluar from './views/SuratKeluar'
+import SuratKeluarDetail from './views/SuratKeluarDetail'
+import ArsipDigital from './views/ArsipDigital'
+import ProdukHukum from './views/ProdukHukum'
+import UserManagement from './views/UserManagement'
+import UserDetail from './views/UserDetail'
+import PersetujuanAkhir from './views/PersetujuanAkhir'
+import BuatProdukHukum from './views/BuatProdukHukum'
+import BuatSuratMasuk from './views/BuatSuratMasuk'
+import BuatSuratKeluar from './views/BuatSuratKeluar'
+import HarmonisasiReview from './views/HarmonisasiReview'
+import TrackingPage from './views/TrackingPage'
+import RoleConfig from './views/RoleConfig'
+import SystemLogs from './views/SystemLogs'
+import BHDashboard from './views/BHDashboard'
+import BHPengaturan from './views/BHPengaturan'
 import Skeleton from './components/Skeleton'
-import './App.css'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [pageKey, setPageKey] = useState(0);
+  const { user, token, role, logout, isLoading: authLoading } = useAuth();
+  const isAuthenticated = !!token;
+  // Fallback for mock components
+  const setRole = () => console.warn('setRole disabled');
+  
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef(null);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Map path to tab name for Breadcrumb and Sidebar active state
+  const pathToTab = (path) => {
+    if (path === '/') return 'dashboard';
+    return path.substring(1);
+  };
+
+  const activeTab = pathToTab(location.pathname);
 
   const handleSetActiveTab = (tab) => {
     setIsLoading(true);
-    setActiveTab(tab);
-    setPageKey(prev => prev + 1);
+    const path = tab === 'dashboard' ? '/' : `/${tab}`;
+    navigate(path);
     setSidebarOpen(false);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   };
 
-  // Simulate loading with brief delay
+  // Simulate loading with brief delay on route change
   useEffect(() => {
-    if (isLoading) {
-      const timer = setTimeout(() => setIsLoading(false), 400);
-      return () => clearTimeout(timer);
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 400);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  // Handle role switching by navigating to the appropriate dashboard
+  useEffect(() => {
+    if (role === 'biro-hukum' && !['bh-dashboard', 'bh-produk-hukum', 'buat-produk-hukum', 'bh-harmonisasi', 'harmonisasi-review', 'bh-arsip-digital', 'bh-pengaturan', 'persetujuan-akhir'].includes(activeTab)) {
+      handleSetActiveTab('bh-dashboard');
+    } else if (role === 'legal' && !['dashboard', 'regulations', 'decrees', 'harmonization', 'digital-archive', 'persetujuan-akhir'].includes(activeTab)) {
+      handleSetActiveTab('dashboard'); // Assuming legal dashboard is just 'dashboard' or 'regulations'
+    } else if (role === 'admin' && ['bh-dashboard', 'bh-produk-hukum', 'buat-produk-hukum', 'bh-harmonisasi', 'bh-arsip-digital', 'bh-pengaturan'].includes(activeTab)) {
+      handleSetActiveTab('dashboard');
     }
-  }, [isLoading, pageKey]);
+  }, [role]);
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setActiveTab('dashboard');
+    logout();
+    navigate('/');
     setSidebarOpen(false);
   };
 
-  // Auth page
+  // Public pages (no sidebar/header)
   if (!isAuthenticated) {
-    return (
-      <ToastProvider>
-        <AuthPage onLogin={() => setIsAuthenticated(true)} />
-      </ToastProvider>
-    );
+    if (activeTab === 'login') {
+      return (
+        <ToastProvider>
+          <AuthPage onLogin={() => { navigate('/'); }} />
+        </ToastProvider>
+      );
+    } else if (activeTab === 'tracking') {
+      return (
+        <ToastProvider>
+          <TrackingPage setActiveTab={handleSetActiveTab} onLogout={handleLogout} />
+        </ToastProvider>
+      );
+    } else {
+      return (
+        <ToastProvider>
+          <LandingPage onNavigate={handleSetActiveTab} />
+        </ToastProvider>
+      );
+    }
   }
 
-  // Public pages (no sidebar/header)
+  // Tracking page for authenticated users (if they somehow navigate there)
   if (activeTab === 'tracking') {
     return (
       <ToastProvider>
@@ -74,47 +115,60 @@ function App() {
 
   const getSkeletonType = () => {
     if (['dashboard', 'bh-dashboard'].includes(activeTab)) return 'dashboard';
-    if (['surat-detail', 'surat-keluar-detail', 'user-detail', 'harmonisasi-review', 'buat-produk-hukum'].includes(activeTab)) return 'detail';
+    if (['surat-detail', 'surat-keluar-detail', 'user-detail', 'harmonisasi-review', 'buat-produk-hukum', 'buat-surat-masuk', 'buat-surat-keluar'].includes(activeTab)) return 'detail';
     return 'table';
-  };
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <MainDashboard setActiveTab={handleSetActiveTab} />;
-      case 'surat-masuk': return <SuratMasuk setActiveTab={handleSetActiveTab} />;
-      case 'surat-detail': return <SuratDetail setActiveTab={handleSetActiveTab} />;
-      case 'surat-keluar': return <SuratKeluar setActiveTab={handleSetActiveTab} />;
-      case 'surat-keluar-detail': return <SuratKeluarDetail setActiveTab={handleSetActiveTab} />;
-      case 'user-management': return <UserManagement setActiveTab={handleSetActiveTab} />;
-      case 'user-detail': return <UserDetail setActiveTab={handleSetActiveTab} />;
-      case 'role-config': return <RoleConfig />;
-      case 'system-logs': return <SystemLogs />;
-      case 'persetujuan-akhir': return <PersetujuanAkhir setActiveTab={handleSetActiveTab} />;
-      case 'bh-dashboard': return <BHDashboard setActiveTab={handleSetActiveTab} />;
-      case 'buat-produk-hukum': return <BuatProdukHukum setActiveTab={handleSetActiveTab} />;
-      case 'harmonisasi-review': return <HarmonisasiReview setActiveTab={handleSetActiveTab} />;
-      case 'bh-pengaturan': return <BHPengaturan />;
-      case 'bh-arsip-digital': case 'digital-archive': return <ArsipDigital />;
-      case 'tracking': return <TrackingPage />;
-      default: return (
-        <div style={{ padding: '20px' }}>
-          <h2>Halaman {activeTab} sedang dalam pengembangan</h2>
-        </div>
-      );
-    }
   };
 
   return (
     <ToastProvider>
-      <div className="app-container">
-        <div className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`} onClick={() => setSidebarOpen(false)} />
-        <Sidebar activeTab={activeTab} setActiveTab={handleSetActiveTab} onLogout={handleLogout} isOpen={sidebarOpen} />
-        <div className="main-content">
-          <Header activeTab={activeTab} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="dashboard-scroll-area" ref={scrollRef}>
+      <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-800">
+        
+        {/* Sidebar Overlay for Mobile */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[2999] md:hidden transition-opacity" 
+            onClick={() => setSidebarOpen(false)} 
+          />
+        )}
+        
+        <Sidebar activeTab={activeTab} setActiveTab={handleSetActiveTab} onLogout={handleLogout} isOpen={sidebarOpen} role={role} />
+        
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <Header activeTab={activeTab} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} role={role} setRole={setRole} />
+          
+          <main className="flex-1 overflow-y-auto bg-slate-50 relative" ref={scrollRef}>
             <Breadcrumb activeTab={activeTab} setActiveTab={handleSetActiveTab} />
-            <div key={pageKey} className="page-transition">
-              {isLoading ? <Skeleton type={getSkeletonType()} /> : renderContent()}
+            
+            <div className="transition-all duration-300">
+              {isLoading ? (
+                <Skeleton type={getSkeletonType()} />
+              ) : (
+                <Routes>
+                  <Route path="/" element={<MainDashboard setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/surat-masuk" element={<SuratMasuk setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/surat-detail" element={<SuratDetail setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/surat-keluar" element={<SuratKeluar setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/surat-keluar-detail" element={<SuratKeluarDetail setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/user-management" element={<UserManagement setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/user-detail" element={<UserDetail setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/role-config" element={<RoleConfig />} />
+                  <Route path="/system-logs" element={<SystemLogs />} />
+                  <Route path="/persetujuan-akhir" element={<PersetujuanAkhir setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/bh-dashboard" element={<BHDashboard setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/buat-produk-hukum" element={<BuatProdukHukum setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/buat-surat-masuk" element={<BuatSuratMasuk setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/buat-surat-keluar" element={<BuatSuratKeluar setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/harmonisasi-review" element={<HarmonisasiReview setActiveTab={handleSetActiveTab} />} />
+                  <Route path="/bh-pengaturan" element={<BHPengaturan />} />
+                  <Route path="/bh-arsip-digital" element={<ArsipDigital />} />
+                  <Route path="/digital-archive" element={<ArsipDigital />} />
+                  <Route path="*" element={
+                    <div className="p-5 text-emerald-800">
+                      <h2 className="text-xl font-bold">Halaman {activeTab} sedang dalam pengembangan</h2>
+                    </div>
+                  } />
+                </Routes>
+              )}
             </div>
           </main>
         </div>
