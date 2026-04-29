@@ -76,7 +76,7 @@ const UserManagement = ({ setActiveTab }) => {
         </div>
         <button className="um-btn-create">
           <UserPlus size={16} />
-          Create New User
+          Buat Dokumen Baru
         </button>
       </div>
 

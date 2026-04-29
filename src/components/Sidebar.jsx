@@ -193,7 +193,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, isOpen }) => {
       <div className="sidebar-top-action">
         <button className="btn-create-user" onClick={() => setActiveTab('user-management')}>
           <Plus size={16} />
-          Create New User
+          Buat Dokumen Baru
         </button>
       </div>
 
