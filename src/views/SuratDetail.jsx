@@ -1,14 +1,93 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Hash, Calendar, ClipboardList, X, Send, ArrowLeft } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
 
 const SuratDetail = ({ setActiveTab }) => {
   const { addToast } = useToast();
+  const { token } = useAuth();
+  
+  const [surat, setSurat] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [kopSurat, setKopSurat] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Form State
+  const [disposisiForm, setDisposisiForm] = useState({
+    sifat: 'Segera',
+    penerimaId: '',
+    arahan: ''
+  });
 
-  const handleKirimDisposisi = () => {
-    addToast('Disposisi berhasil dikirim ke Wakil Rektor I.', 'success');
-    setTimeout(() => setActiveTab('surat-masuk'), 1200);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [suratRes, usersRes, kopRes] = await Promise.all([
+          fetch('/api/surat-masuk', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/users', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/templates/kop/active', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        
+        if (suratRes.ok && usersRes.ok) {
+          const suratList = await suratRes.json();
+          // Find first Menunggu Disposisi or just use the first available
+          const targetSurat = suratList.find(s => s.status === 'Menunggu Disposisi') || suratList[0];
+          setSurat(targetSurat);
+          setUsers(await usersRes.json());
+        }
+        
+        if (kopRes.ok) {
+          const kopData = await kopRes.json();
+          if (kopData.id) setKopSurat(kopData);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  const handleKirimDisposisi = async () => {
+    if (!disposisiForm.penerimaId || !disposisiForm.arahan) {
+      addToast('Tujuan penerima dan instruksi harus diisi!', 'error');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/surat-masuk/${surat.id}/disposisi`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          penerimaId: disposisiForm.penerimaId,
+          arahan: `[${disposisiForm.sifat}] ${disposisiForm.arahan}`
+        })
+      });
+
+      if (response.ok) {
+        addToast('Disposisi berhasil dikirim!', 'success');
+        setTimeout(() => setActiveTab('surat-masuk'), 1200);
+      } else {
+        throw new Error('Failed to send disposisi');
+      }
+    } catch (err) {
+      addToast('Gagal mengirim disposisi', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Memuat detail surat...</div>;
+  if (!surat) return <div className="p-8 text-center text-slate-500">Tidak ada surat yang dapat ditampilkan.</div>;
+
+  const dateObj = new Date(surat.tanggal);
+  const tanggalStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start h-[calc(100vh-80px)] overflow-hidden">
@@ -26,24 +105,24 @@ const SuratDetail = ({ setActiveTab }) => {
             </button>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200">SURAT MASUK</span>
-              <span className="text-xs font-medium text-slate-500">Diterima: 12 Okt 2023</span>
+              <span className="text-xs font-medium text-slate-500">Diterima: {tanggalStr}</span>
             </div>
           </div>
 
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-3 leading-tight">Undangan Rapat Koordinasi Nasional APTISI 2023</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-3 leading-tight">{surat.perihal}</h2>
 
           <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600">
             <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
               <Building2 size={14} className="text-slate-400" />
-              <span className="truncate max-w-[200px] md:max-w-none">Kementerian Pendidikan dan Kebudayaan</span>
+              <span className="truncate max-w-[200px] md:max-w-none">{surat.asal}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
               <Hash size={14} className="text-slate-400" />
-              <span>124/B.1/KU/2023</span>
+              <span>{surat.noSurat}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
               <Calendar size={14} className="text-slate-400" />
-              <span>10 Okt 2023</span>
+              <span>{tanggalStr}</span>
             </div>
           </div>
         </div>
@@ -53,13 +132,23 @@ const SuratDetail = ({ setActiveTab }) => {
           <div className="w-full max-w-[800px] bg-white shadow-lg min-h-[900px] rounded border border-slate-300 p-12 lg:p-16 relative">
             {/* Kop Surat Mock */}
             <div className="flex items-center border-b-[3px] border-black pb-6 mb-8 gap-6">
-              <div className="w-20 h-20 bg-slate-200 rounded-full shrink-0 flex items-center justify-center opacity-70">
-                {/* Logo placeholder */}
+              <div className="w-20 h-20 bg-slate-200 rounded-full shrink-0 flex items-center justify-center opacity-70 overflow-hidden">
+                {kopSurat && kopSurat.logoUrl ? (
+                  <img src={kopSurat.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-xs text-slate-400 font-bold">LOGO</div>
+                )}
               </div>
               <div className="flex-1 text-center pr-26">
-                <h3 className="font-serif font-bold text-xl tracking-wide uppercase text-slate-800 leading-snug">Kementerian Pendidikan<br/>Kebudayaan, Riset, dan Teknologi</h3>
-                <p className="font-serif text-sm mt-1 text-slate-600">Jl. Jenderal Sudirman Senayan, Jakarta 10270</p>
-                <p className="font-serif text-xs text-slate-500 mt-0.5">Telepon (021) 5711144, Laman: www.kemdikbud.go.id</p>
+                <h3 className="font-serif font-bold text-xl tracking-wide uppercase text-slate-800 leading-snug whitespace-pre-line">
+                  {kopSurat ? kopSurat.namaInstitusi : 'Kementerian Pendidikan\nKebudayaan, Riset, dan Teknologi'}
+                </h3>
+                <p className="font-serif text-sm mt-1 text-slate-600">
+                  {kopSurat ? kopSurat.alamat : 'Jl. Jenderal Sudirman Senayan, Jakarta 10270'}
+                </p>
+                <p className="font-serif text-xs text-slate-500 mt-0.5">
+                  {kopSurat ? `${kopSurat.kontak}${kopSurat.website ? `, Laman: ${kopSurat.website}` : ''}` : 'Telepon (021) 5711144, Laman: www.kemdikbud.go.id'}
+                </p>
               </div>
             </div>
             
@@ -123,31 +212,39 @@ const SuratDetail = ({ setActiveTab }) => {
           <div className="flex flex-col gap-2.5">
             <label className="text-xs font-bold text-slate-800 tracking-wider">SIFAT DISPOSISI</label>
             <div className="flex rounded-xl p-1 bg-slate-100/80 border border-slate-200/60">
-              <button className="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:bg-white hover:shadow-sm transition-all">Sangat Segera</button>
-              <button className="flex-1 py-1.5 text-xs font-bold rounded-lg text-emerald-700 bg-white shadow-sm border border-slate-200 transition-all">Segera</button>
-              <button className="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:bg-white hover:shadow-sm transition-all">Biasa</button>
+              {['Sangat Segera', 'Segera', 'Biasa'].map(s => (
+                <button 
+                  key={s}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${disposisiForm.sifat === s ? 'text-emerald-700 bg-white shadow-sm border border-slate-200 font-bold' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
+                  onClick={() => setDisposisiForm({ ...disposisiForm, sifat: s })}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-800 tracking-wider">DITERUSKAN KEPADA</label>
-            <div className="min-h-[46px] bg-slate-50 border border-slate-200 rounded-xl p-2 flex flex-wrap gap-2 items-center focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-50 transition-all cursor-text">
-              <div className="flex items-center gap-1.5 bg-emerald-100 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-md text-xs font-semibold group">
-                Wakil Rektor I
-                <button className="text-emerald-600 hover:text-red-500 hover:bg-white rounded-full p-0.5 transition-colors"><X size={12} /></button>
-              </div>
-              <div className="flex items-center gap-1.5 bg-emerald-100 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-md text-xs font-semibold group">
-                Dekan Fakultas Tarbiyah
-                <button className="text-emerald-600 hover:text-red-500 hover:bg-white rounded-full p-0.5 transition-colors"><X size={12} /></button>
-              </div>
-              <input type="text" placeholder="Ketik tujuan..." className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400 py-0.5" />
+            <div className="relative">
+              <select 
+                value={disposisiForm.penerimaId}
+                onChange={(e) => setDisposisiForm({ ...disposisiForm, penerimaId: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 transition-all appearance-none cursor-pointer"
+              >
+                <option value="" disabled hidden>Pilih pejabat / pegawai tujuan...</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.roles?.map(r => r.name).join(', ') || 'Tanpa Role'})</option>
+                ))}
+              </select>
             </div>
-            <span className="text-[11px] text-slate-400 font-medium">Gunakan koma atau enter untuk menambah tujuan.</span>
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-800 tracking-wider">INSTRUKSI / CATATAN PIMPINAN</label>
             <textarea 
+              value={disposisiForm.arahan}
+              onChange={(e) => setDisposisiForm({ ...disposisiForm, arahan: e.target.value })}
               className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 transition-all resize-none min-h-[120px]" 
               placeholder="Tuliskan instruksi atau arahan untuk tindak lanjut surat ini..."
             ></textarea>
@@ -156,10 +253,15 @@ const SuratDetail = ({ setActiveTab }) => {
           <div className="flex flex-col gap-3">
             <label className="text-xs font-bold text-slate-800 tracking-wider">INSTRUKSI CEPAT</label>
             <div className="flex flex-wrap gap-2">
-              <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-medium text-slate-600 transition-colors">Tindak lanjuti</button>
-              <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-medium text-slate-600 transition-colors">Wakili / Hadiri</button>
-              <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-medium text-slate-600 transition-colors">Siapkan bahan</button>
-              <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-medium text-slate-600 transition-colors">Untuk diketahui</button>
+              {['Tindak lanjuti', 'Wakili / Hadiri', 'Siapkan bahan', 'Untuk diketahui'].map(ins => (
+                <button 
+                  key={ins}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-medium text-slate-600 transition-colors"
+                  onClick={() => setDisposisiForm({ ...disposisiForm, arahan: disposisiForm.arahan ? `${disposisiForm.arahan}\n- ${ins}` : `- ${ins}` })}
+                >
+                  {ins}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -172,11 +274,12 @@ const SuratDetail = ({ setActiveTab }) => {
             Batal
           </button>
           <button 
-            className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-2"
+            className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50"
             onClick={handleKirimDisposisi}
+            disabled={isSubmitting}
           >
             <Send size={16} className="-mt-0.5" />
-            Kirim Disposisi
+            {isSubmitting ? 'Mengirim...' : 'Kirim Disposisi'}
           </button>
         </div>
       </div>

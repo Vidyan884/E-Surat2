@@ -6,7 +6,7 @@ import ProfileDropdown from './ProfileDropdown';
 const legalTabs = ['regulations', 'decrees', 'harmonization', 'digital-archive'];
 const biroHukumTabs = ['bh-dashboard', 'bh-produk-hukum', 'buat-produk-hukum', 'bh-harmonisasi', 'harmonisasi-review', 'bh-arsip-digital', 'bh-pengaturan', 'persetujuan-akhir'];
 
-const Header = ({ activeTab, onToggleSidebar, role, setRole }) => {
+const Header = ({ activeTab, onToggleSidebar, role, setRole, onLogout }) => {
   const isLegalMode = legalTabs.includes(activeTab) || role === 'legal';
   const isBiroHukumMode = biroHukumTabs.includes(activeTab) || role === 'biro-hukum';
 
@@ -73,7 +73,7 @@ const Header = ({ activeTab, onToggleSidebar, role, setRole }) => {
           </button>
         )}
 
-        <ProfileDropdown role={role} setRole={setRole} />
+        <ProfileDropdown role={role} setRole={setRole} onLogout={onLogout} />
       </div>
     </header>
   );

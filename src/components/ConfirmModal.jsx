@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Trash2, X, Info } from 'lucide-react';
 
 const ConfirmModal = ({ 
@@ -47,7 +48,7 @@ const ConfirmModal = ({
   const config = typeConfig[type] || typeConfig.danger;
   const IconComponent = config.icon;
 
-  return (
+  return createPortal(
     <div 
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
       onClick={onClose}
@@ -85,7 +86,8 @@ const ConfirmModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

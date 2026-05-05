@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Settings, Shield, LogOut, ChevronDown } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProfileDropdown = ({ onLogout, role, setRole }) => {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -16,7 +18,7 @@ const ProfileDropdown = ({ onLogout, role, setRole }) => {
   return (
     <div className="relative" ref={ref}>
       <button 
-        className="flex items-center gap-1.5 md:gap-2 hover:bg-emerald-50 p-1 md:px-2 md:py-1.5 rounded-full md:rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/30" 
+        className="flex items-center gap-1.5 md:gap-3 hover:bg-emerald-50 p-1 md:px-2 md:py-1.5 rounded-full md:rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/30" 
         onClick={() => setIsOpen(!isOpen)}
       >
         <img 
@@ -24,6 +26,10 @@ const ProfileDropdown = ({ onLogout, role, setRole }) => {
           alt="Profile"
           className="w-8 h-8 rounded-full object-cover border-2 border-emerald-100 shadow-sm"
         />
+        <div className="hidden md:flex flex-col text-left">
+          <span className="text-sm font-bold text-slate-800 leading-tight">{user?.name || 'Ahmad Hidayat'}</span>
+          <span className="text-[10px] font-medium text-slate-500 leading-tight capitalize">{user?.role?.replace('-', ' ') || role?.replace('-', ' ') || 'Super Admin'}</span>
+        </div>
         <ChevronDown size={14} className={`text-slate-400 transition-transform hidden sm:block ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -36,8 +42,8 @@ const ProfileDropdown = ({ onLogout, role, setRole }) => {
               className="w-10 h-10 rounded-full object-cover border border-slate-200"
             />
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-slate-800">Ahmad Hidayat</span>
-              <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md w-max mt-0.5">Super Admin</span>
+              <span className="text-sm font-bold text-slate-800">{user?.name || 'Ahmad Hidayat'}</span>
+              <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md w-max mt-0.5 capitalize">{user?.role?.replace('-', ' ') || role?.replace('-', ' ') || 'Super Admin'}</span>
             </div>
           </div>
 
@@ -60,24 +66,18 @@ const ProfileDropdown = ({ onLogout, role, setRole }) => {
           <div className="px-4 py-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Switch Role</span>
             <div className="flex flex-col gap-1">
-              <button 
-                onClick={() => { setRole('admin'); setIsOpen(false); }}
-                className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${role === 'admin' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                Super Admin
-              </button>
-              <button 
-                onClick={() => { setRole('biro-hukum'); setIsOpen(false); }}
-                className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${role === 'biro-hukum' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                Biro Hukum
-              </button>
-              <button 
-                onClick={() => { setRole('legal'); setIsOpen(false); }}
-                className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${role === 'legal' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                Legal Services
-              </button>
+              {(user?.roles || ['admin', 'biro-hukum', 'legal']).map((r) => {
+                const roleName = typeof r === 'string' ? r : (r.name || r);
+                return (
+                  <button 
+                    key={roleName}
+                    onClick={() => { setRole(roleName); setIsOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-md transition-colors capitalize ${role === roleName ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {roleName.replace('-', ' ')}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

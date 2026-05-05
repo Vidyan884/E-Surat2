@@ -6,6 +6,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [activeRole, setActiveRole] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -15,6 +16,9 @@ export const AuthProvider = ({ children }) => {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUser(payload);
+        if (payload.roles && payload.roles.length > 0) {
+          setActiveRole(payload.roles[0]);
+        }
       } catch (error) {
         console.error("Invalid token format", error);
         logout();
@@ -40,6 +44,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', data.token);
       setToken(data.token);
       setUser(data.user);
+      if (data.user.roles && data.user.roles.length > 0) {
+        setActiveRole(data.user.roles[0]);
+      }
       return data.user;
     } catch (error) {
       throw error;
@@ -50,10 +57,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    setActiveRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, role: user?.role, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, role: activeRole, activeRole, setActiveRole, switchRole: setActiveRole, login, logout, isLoading }}>
       {!isLoading && children}
     </AuthContext.Provider>
   );

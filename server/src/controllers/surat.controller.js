@@ -27,6 +27,24 @@ class SuratController {
       res.status(500).json({ message: 'Error creating disposisi', error: error.message });
     }
   }
+
+  async getSuratKeluar(req, res) {
+    try {
+      const surat = await suratService.getSuratKeluar();
+      res.json(surat);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching surat keluar', error: error.message });
+    }
+  }
+
+  async createSuratKeluar(req, res) {
+    try {
+      const newSurat = await suratService.createSuratKeluar(req.user.id, req.body);
+      res.status(201).json(newSurat);
+    } catch (error) {
+      res.status(500).json({ message: 'Error creating surat keluar', error: error.message });
+    }
+  }
 }
 
 module.exports = new SuratController();

@@ -1,5 +1,8 @@
-import React from 'react';
-import { ChevronDown, Filter, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, Filter, ChevronLeft, ChevronRight, Eye, Calendar } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+const ITEMS_PER_PAGE = 4;
 
 const StatusBadge = ({ type, text }) => {
   const getBadgeClass = (colorStr) => {
@@ -33,6 +36,56 @@ const StatusBadge = ({ type, text }) => {
 }
 
 const SuratKeluar = ({ setActiveTab }) => {
+  const { token } = useAuth();
+  const [allSurat, setAllSurat] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const fetchSurat = async () => {
+      try {
+        const response = await fetch('/api/surat-keluar', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const formatted = data.map(s => {
+            let statusColor = 'gray';
+            if (s.status === 'Draft') statusColor = 'gray';
+            else if (s.status === 'Menunggu TTE') statusColor = 'yellow';
+            else if (s.status === 'Review') statusColor = 'blue';
+            else if (s.status === 'Selesai') statusColor = 'green';
+            else if (s.status === 'Perlu Perbaikan') statusColor = 'red';
+
+            const dateObj = new Date(s.tanggal);
+            return {
+              ...s,
+              tanggalStr: dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+              waktuStr: dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+              statusColor
+            };
+          });
+          setAllSurat(formatted);
+        }
+      } catch (err) {
+        console.error('Failed to fetch surat keluar', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSurat();
+  }, [token]);
+
+  const totalPages = Math.max(1, Math.ceil(allSurat.length / ITEMS_PER_PAGE));
+  const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentSurat = allSurat.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
       
@@ -97,128 +150,47 @@ const SuratKeluar = ({ setActiveTab }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {/* Row 1 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
-                <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">1</td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 mb-1">12 Okt 2023</div>
-                  <div className="text-xs font-medium text-slate-400">09:15 WIB</div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors block mb-1.5">Undangan Rapat Senat Akademik...</div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block">Undangan</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <span className="text-sm font-medium text-slate-600">Seluruh Anggota Senat Universitas</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <StatusBadge type="yellow" text="Menunggu Verifikasi" />
-                </td>
-                <td className="px-4 py-4 text-center align-top">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row 2 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
-                <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">2</td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 mb-1">11 Okt 2023</div>
-                  <div className="text-xs font-medium text-slate-400">14:30 WIB</div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors block mb-1.5">Permohonan Izin Penggunaan Auditorium...</div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block">Permohonan</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <span className="text-sm font-medium text-slate-600">Kepala Biro Umum dan Aset</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <StatusBadge type="gray" text="Draft" />
-                </td>
-                <td className="px-4 py-4 text-center align-top">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row 3 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
-                <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">3</td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 mb-1">10 Okt 2023</div>
-                  <div className="text-xs font-medium text-slate-400">11:05 WIB</div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors block mb-1.5">Surat Tugas Pendampingan Lomba...</div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block">Surat Tugas</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <span className="text-sm font-medium text-slate-600">Dr. Budi Santoso, M.T.</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <StatusBadge type="red" text="Perlu Perbaikan" />
-                </td>
-                <td className="px-4 py-4 text-center align-top">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row 4 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
-                <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">4</td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 mb-1">09 Okt 2023</div>
-                  <div className="text-xs font-medium text-slate-400">15:20 WIB</div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors block mb-1.5">Pemberitahuan Libur Akademik Pengganti...</div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block">Pemberitahuan</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <span className="text-sm font-medium text-slate-600">Seluruh Civitas Akademika</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <StatusBadge type="blue" text="Disetujui" />
-                </td>
-                <td className="px-4 py-4 text-center align-top">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-               {/* Row 5 */}
-               <tr className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
-                <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">5</td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 mb-1">08 Okt 2023</div>
-                  <div className="text-xs font-medium text-slate-400">08:45 WIB</div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors block mb-1.5">Surat Keputusan Pengangkatan Ketua...</div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block">Keputusan</span>
-                    <span className="text-xs font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">124/UNIA/SK/X/2023</span>
-                  </div>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <span className="text-sm font-medium text-slate-600">Kementerian Pendidikan,...</span>
-                </td>
-                <td className="px-4 py-4 align-top">
-                  <StatusBadge type="green" text="Sudah Nomor" />
-                </td>
-                <td className="px-4 py-4 text-center align-top">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="px-4 py-8 text-center text-slate-500">Memuat data...</td>
+                </tr>
+              ) : currentSurat.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-4 py-8 text-center text-slate-500">Belum ada surat keluar.</td>
+                </tr>
+              ) : (
+                currentSurat.map((surat, idx) => (
+                  <tr key={surat.id} className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
+                    <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">
+                      {startIdx + idx + 1}
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <div className="text-sm font-bold text-slate-800 mb-1">{surat.tanggalStr}</div>
+                      <div className="text-xs font-medium text-slate-400">{surat.waktuStr}</div>
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors block mb-1.5">{surat.perihal}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 inline-block">{surat.sifat}</span>
+                        {surat.noSurat && (
+                          <span className="text-xs font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{surat.noSurat}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <span className="text-sm font-medium text-slate-600">{surat.tujuan}</span>
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <StatusBadge type={surat.statusColor} text={surat.status} />
+                    </td>
+                    <td className="px-4 py-4 text-center align-top">
+                      <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
+                        <Eye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -226,14 +198,34 @@ const SuratKeluar = ({ setActiveTab }) => {
         {/* Pagination Bar */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-slate-500">
-            Menampilkan <strong className="text-slate-800">1</strong> sampai <strong className="text-slate-800">5</strong> dari <strong className="text-slate-800">24</strong> surat
+            Menampilkan <strong className="text-slate-800">{allSurat.length > 0 ? startIdx + 1 : 0}</strong> sampai <strong className="text-slate-800">{Math.min(startIdx + ITEMS_PER_PAGE, allSurat.length)}</strong> dari <strong className="text-slate-800">{allSurat.length}</strong> surat
           </div>
           <div className="flex items-center gap-1">
-            <button className="h-8 px-3 flex items-center justify-center rounded-lg border bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed text-sm font-medium transition-colors">Sebelumnya</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-emerald-600 border-emerald-600 text-white text-sm font-semibold transition-colors">1</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 text-sm font-semibold transition-colors">2</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 text-sm font-semibold transition-colors">3</button>
-            <button className="h-8 px-3 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 text-sm font-medium transition-colors">Selanjutnya</button>
+            <button 
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${currentPage === 1 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600'}`} 
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors text-sm font-semibold ${currentPage === page ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600'}`}
+                onClick={() => goToPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button 
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${currentPage === totalPages ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600'}`} 
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
 

@@ -35,6 +35,31 @@ class SuratService {
 
     return disposisi;
   }
+
+  async getSuratKeluar() {
+    return await prisma.suratKeluar.findMany({
+      orderBy: { tanggal: 'desc' },
+      include: {
+        author: {
+          select: { name: true, roles: { select: { name: true } } }
+        }
+      }
+    });
+  }
+
+  async createSuratKeluar(authorId, data) {
+    return await prisma.suratKeluar.create({
+      data: {
+        perihal: data.perihal,
+        tujuan: data.tujuan,
+        sifat: data.sifat,
+        status: data.status || 'Draft',
+        attachment: data.attachment,
+        tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+        authorId
+      }
+    });
+  }
 }
 
 module.exports = new SuratService();

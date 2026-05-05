@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { ChevronDown, ArrowRight, ArrowLeft, Plus, X, Upload, FileText, Check, Calendar, Edit3 } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
+
+// Templates will be fetched dynamically
 
 const BuatSuratKeluar = ({ setActiveTab }) => {
   const { addToast } = useToast();
+  const { token } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     kategori: '',
     tujuan: '',
@@ -12,9 +17,64 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
     sifat: 'biasa',
     isiRingkas: '',
   });
+  
+  const [dbTemplates, setDbTemplates] = useState([]);
+  
+  // Fetch templates on mount
+  React.useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const response = await fetch('/api/templates', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          setDbTemplates(await response.json());
+        }
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+      }
+    };
+    fetchTemplates();
+  }, [token]);
 
   const [uploadedFile, setUploadedFile] = useState(null);
   const [catatanTambahan, setCatatanTambahan] = useState('');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+  const handleSubmit = async (status) => {
+    if (!formData.kategori || !formData.tujuan || !formData.perihal) {
+      addToast('Harap lengkapi field kategori, tujuan, dan perihal terlebih dahulu.', 'error');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/surat-keluar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          status,
+          attachment: uploadedFile ? uploadedFile.name : null
+        })
+      });
+
+      if (response.ok) {
+        addToast(status === 'Draft' ? 'Draf berhasil disimpan.' : 'Surat keluar berhasil diajukan untuk verifikasi.', 'success');
+        setTimeout(() => setActiveTab('surat-keluar'), 1500);
+      } else {
+        throw new Error('Failed to submit surat keluar');
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('Terjadi kesalahan saat menyimpan surat.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -29,6 +89,15 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
         type: file.type,
       });
     }
+  };
+
+  const selectTemplate = (template) => {
+    handleChange('isiRingkas', template.content);
+    if (!formData.kategori) {
+      handleChange('kategori', template.kategori);
+    }
+    setShowTemplateModal(false);
+    addToast('Template berhasil dimuat.', 'success');
   };
 
   const steps = [
@@ -215,14 +284,17 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-semibold text-slate-700">Isi Ringkas Surat</label>
-                    <button className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md hover:bg-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-100">
-                      <Edit3 size={12} /> Gunakan Template
+                    <button 
+                      className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-200 shadow-sm"
+                      onClick={() => setShowTemplateModal(true)}
+                    >
+                      <FileText size={14} /> Gunakan Template
                     </button>
                   </div>
                   <textarea 
                     value={formData.isiRingkas}
                     onChange={(e) => handleChange('isiRingkas', e.target.value)}
-                    placeholder="Ketikkan isi draf surat secara singkat di sini..."
+                    placeholder="Ketikkan isi draf surat secara singkat di sini atau pilih template..."
                     className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 transition-all min-h-[200px] resize-y"
                     rows={8}
                   />
@@ -351,10 +423,11 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
             <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-3">
               {currentStep === 3 && (
                 <button 
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-semibold text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors"
-                  onClick={() => addToast('Draf berhasil disimpan.', 'info')}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-semibold text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                  onClick={() => handleSubmit('Draft')}
+                  disabled={isSubmitting}
                 >
-                  Simpan Draf
+                  {isSubmitting ? 'Menyimpan...' : 'Simpan Draf'}
                 </button>
               )}
               
@@ -368,17 +441,63 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
                 </button>
               ) : (
                 <button 
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-                  onClick={() => { addToast('Surat keluar berhasil diajukan untuk verifikasi.', 'success'); setTimeout(() => setActiveTab('surat-keluar'), 1500); }}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  onClick={() => handleSubmit('Menunggu Verifikasi')}
+                  disabled={isSubmitting}
                 >
                   <Check size={16} strokeWidth={3} />
-                  Ajukan Surat
+                  {isSubmitting ? 'Memproses...' : 'Ajukan Surat'}
                 </button>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Template Selection Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 md:p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <FileText size={20} className="text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Pilih Template Surat</h3>
+                  <p className="text-sm text-slate-500">Pilih format draf sesuai kebutuhan</p>
+                </div>
+              </div>
+              <button 
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                onClick={() => setShowTemplateModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 md:p-6 bg-white space-y-4">
+              {dbTemplates.length === 0 ? (
+                <div className="text-center p-8 text-slate-500">Belum ada template yang tersedia. Minta Admin untuk menambahkannya.</div>
+              ) : dbTemplates.map((template) => (
+                <div 
+                  key={template.id}
+                  className="border border-slate-200 rounded-xl p-4 hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group"
+                  onClick={() => selectTemplate(template)}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{template.judul}</h4>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">{template.kategori}</span>
+                  </div>
+                  <p className="text-sm text-slate-500 line-clamp-2 whitespace-pre-line bg-slate-50 p-3 rounded-lg font-mono text-xs">
+                    {template.konten.substring(0, 150)}...
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

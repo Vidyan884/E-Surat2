@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Filter, Eye, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+const ITEMS_PER_PAGE = 4;
 
 const StatusBadge = ({ type, text }) => {
   const getBadgeClass = (colorStr) => {
@@ -33,6 +36,55 @@ const StatusBadge = ({ type, text }) => {
 }
 
 const ProdukHukum = () => {
+  const { token } = useAuth();
+  const [allProduk, setAllProduk] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const fetchProduk = async () => {
+      try {
+        const response = await fetch('/api/produk-hukum', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const formatted = data.map(p => {
+            let statusColor = 'gray';
+            if (p.status === 'Draft') statusColor = 'gray';
+            else if (p.status === 'Harmonisasi') statusColor = 'yellow';
+            else if (p.status === 'Paraf') statusColor = 'blue';
+            else if (p.status === 'Selesai') statusColor = 'green';
+            else if (p.status === 'Berlaku') statusColor = 'green';
+
+            const dateObj = new Date(p.createdAt);
+            return {
+              ...p,
+              tanggalStr: dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+              statusColor
+            };
+          });
+          setAllProduk(formatted);
+        }
+      } catch (err) {
+        console.error('Failed to fetch produk hukum', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProduk();
+  }, [token]);
+
+  const totalPages = Math.max(1, Math.ceil(allProduk.length / ITEMS_PER_PAGE));
+  const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentProduk = allProduk.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
       {/* Header Area */}
@@ -108,69 +160,35 @@ const ProdukHukum = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {/* Row 1 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group">
-                <td className="px-5 py-4 text-sm font-bold text-slate-700 font-mono align-top">PR-2023-0042</td>
-                <td className="px-5 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">Pedoman Pelaksanaan Tridharma Perguruan Tinggi di Lingkungan Universitas</div>
-                </td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-500">Peraturan<br/>Rektor</td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-700">12 Okt 2023</td>
-                <td className="px-5 py-4 align-top"><StatusBadge type="green" text="Berlaku" /></td>
-                <td className="px-5 py-4 align-top text-center">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row 2 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group">
-                <td className="px-5 py-4 text-sm font-bold text-slate-700 font-mono align-top">SKD-2023-0128</td>
-                <td className="px-5 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">Pengangkatan Panitia Ujian Akhir Semester Ganjil TA 2023/2024 Fakultas Teknik</div>
-                </td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-500">SK Dekan</td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-400">-</td>
-                <td className="px-5 py-4 align-top"><StatusBadge type="yellow" text="Harmonisasi" /></td>
-                <td className="px-5 py-4 align-top text-center">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row 3 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group">
-                <td className="px-5 py-4 text-sm font-bold text-slate-700 font-mono align-top">PR-2023-0043</td>
-                <td className="px-5 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">Standar Biaya Operasional dan Penyelenggaraan Pendidikan Tahun 2024</div>
-                </td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-500">Peraturan<br/>Rektor</td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-400">-</td>
-                <td className="px-5 py-4 align-top"><StatusBadge type="blue" text="Paraf" /></td>
-                <td className="px-5 py-4 align-top text-center">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row 4 */}
-              <tr className="hover:bg-emerald-50/50 transition-colors group">
-                <td className="px-5 py-4 text-sm font-bold text-slate-700 font-mono align-top">SE-2023-0015</td>
-                <td className="px-5 py-4 align-top">
-                  <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">Himbauan Pelaksanaan Kegiatan Ekstrakurikuler Mahasiswa</div>
-                </td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-500">Surat Edaran</td>
-                <td className="px-5 py-4 align-top text-sm font-medium text-slate-400">-</td>
-                <td className="px-5 py-4 align-top"><StatusBadge type="gray" text="Draft" /></td>
-                <td className="px-5 py-4 align-top text-center">
-                  <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex">
-                    <Eye size={18} />
-                  </button>
-                </td>
-              </tr>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="px-5 py-8 text-center text-slate-500">Memuat data...</td>
+                </tr>
+              ) : currentProduk.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-5 py-8 text-center text-slate-500">Belum ada produk hukum.</td>
+                </tr>
+              ) : (
+                currentProduk.map((produk) => (
+                  <tr key={produk.id} className="hover:bg-emerald-50/50 transition-colors group">
+                    <td className="px-5 py-4 text-sm font-bold text-slate-700 font-mono align-top">
+                      {produk.noRegister || '-'}
+                    </td>
+                    <td className="px-5 py-4 align-top">
+                      <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">{produk.judul}</div>
+                      <div className="text-xs text-slate-500 mt-1">{produk.tentang}</div>
+                    </td>
+                    <td className="px-5 py-4 align-top text-sm font-medium text-slate-500">{produk.jenis}</td>
+                    <td className="px-5 py-4 align-top text-sm font-medium text-slate-700">{produk.tanggalStr}</td>
+                    <td className="px-5 py-4 align-top"><StatusBadge type={produk.statusColor} text={produk.status} /></td>
+                    <td className="px-5 py-4 align-top text-center">
+                      <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex">
+                        <Eye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -178,15 +196,34 @@ const ProdukHukum = () => {
         {/* Pagination Bar */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-slate-500">
-            Menampilkan <strong className="text-slate-800">1</strong> sampai <strong className="text-slate-800">4</strong> dari <strong className="text-slate-800">45</strong> dokumen
+            Menampilkan <strong className="text-slate-800">{allProduk.length > 0 ? startIdx + 1 : 0}</strong> sampai <strong className="text-slate-800">{Math.min(startIdx + ITEMS_PER_PAGE, allProduk.length)}</strong> dari <strong className="text-slate-800">{allProduk.length}</strong> dokumen
           </div>
           <div className="flex items-center gap-1">
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"><ChevronLeft size={16} /></button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-emerald-600 border-emerald-600 text-white text-sm font-semibold transition-colors">1</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 text-sm font-semibold transition-colors">2</button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 text-sm font-semibold transition-colors">3</button>
-            <span className="w-8 h-8 flex items-center justify-center text-slate-400 font-bold">...</span>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg border bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"><ChevronRight size={16} /></button>
+            <button 
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${currentPage === 1 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600'}`} 
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors text-sm font-semibold ${currentPage === page ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600'}`}
+                onClick={() => goToPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button 
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${currentPage === totalPages ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600'}`} 
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
       </div>

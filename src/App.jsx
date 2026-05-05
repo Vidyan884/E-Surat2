@@ -13,7 +13,6 @@ import SuratDetail from './views/SuratDetail'
 import SuratKeluar from './views/SuratKeluar'
 import SuratKeluarDetail from './views/SuratKeluarDetail'
 import ArsipDigital from './views/ArsipDigital'
-import ProdukHukum from './views/ProdukHukum'
 import UserManagement from './views/UserManagement'
 import UserDetail from './views/UserDetail'
 import PersetujuanAkhir from './views/PersetujuanAkhir'
@@ -24,15 +23,15 @@ import HarmonisasiReview from './views/HarmonisasiReview'
 import TrackingPage from './views/TrackingPage'
 import RoleConfig from './views/RoleConfig'
 import SystemLogs from './views/SystemLogs'
+import TemplateManagement from './views/TemplateManagement'
 import BHDashboard from './views/BHDashboard'
 import BHPengaturan from './views/BHPengaturan'
 import Skeleton from './components/Skeleton'
 
 function App() {
-  const { user, token, role, logout, isLoading: authLoading } = useAuth();
+  const { user, token, role, switchRole, logout, isLoading: authLoading } = useAuth();
   const isAuthenticated = !!token;
-  // Fallback for mock components
-  const setRole = () => console.warn('setRole disabled');
+  const setRole = switchRole || (() => console.warn('switchRole not available'));
   
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -64,16 +63,37 @@ function App() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Handle role switching by navigating to the appropriate dashboard
+  // Handle role switching and route protection
   useEffect(() => {
-    if (role === 'biro-hukum' && !['bh-dashboard', 'bh-produk-hukum', 'buat-produk-hukum', 'bh-harmonisasi', 'harmonisasi-review', 'bh-arsip-digital', 'bh-pengaturan', 'persetujuan-akhir'].includes(activeTab)) {
-      handleSetActiveTab('bh-dashboard');
-    } else if (role === 'legal' && !['dashboard', 'regulations', 'decrees', 'harmonization', 'digital-archive', 'persetujuan-akhir'].includes(activeTab)) {
-      handleSetActiveTab('dashboard'); // Assuming legal dashboard is just 'dashboard' or 'regulations'
-    } else if (role === 'admin' && ['bh-dashboard', 'bh-produk-hukum', 'buat-produk-hukum', 'bh-harmonisasi', 'bh-arsip-digital', 'bh-pengaturan'].includes(activeTab)) {
-      handleSetActiveTab('dashboard');
+    if (!role) return;
+    
+    const commonTabs = ['dashboard', 'bh-dashboard', 'tracking', 'login'];
+    let isAllowed = true;
+
+    if (['staf-pelaksana'].includes(role)) {
+      const allowed = [...commonTabs, 'surat-keluar', 'surat-keluar-detail', 'buat-surat-keluar'];
+      if (!allowed.includes(activeTab)) isAllowed = false;
+    } 
+    else if (['pimpinan', 'pimpinan-unit'].includes(role)) {
+      const allowed = [...commonTabs, 'surat-masuk', 'surat-detail', 'buat-surat-masuk', 'persetujuan-akhir'];
+      if (!allowed.includes(activeTab)) isAllowed = false;
     }
-  }, [role]);
+    else if (['admin-pusat'].includes(role)) {
+      const allowed = [...commonTabs, 'surat-masuk', 'surat-detail', 'buat-surat-masuk', 'surat-keluar', 'surat-keluar-detail', 'buat-surat-keluar'];
+      if (!allowed.includes(activeTab)) isAllowed = false;
+    }
+    else if (['biro-hukum', 'legal'].includes(role)) {
+      const allowed = [...commonTabs, 'bh-produk-hukum', 'buat-produk-hukum', 'bh-harmonisasi', 'harmonisasi-review', 'harmonization', 'bh-arsip-digital', 'digital-archive', 'arsip-digital', 'persetujuan-akhir', 'bh-pengaturan', 'regulations', 'decrees'];
+      if (!allowed.includes(activeTab)) isAllowed = false;
+    }
+
+    if (!isAllowed) {
+      const targetDashboard = ['biro-hukum', 'legal'].includes(role) ? 'bh-dashboard' : 'dashboard';
+      if (activeTab !== targetDashboard) {
+        handleSetActiveTab(targetDashboard);
+      }
+    }
+  }, [role, activeTab]);
 
   const handleLogout = () => {
     logout();
@@ -134,7 +154,7 @@ function App() {
         <Sidebar activeTab={activeTab} setActiveTab={handleSetActiveTab} onLogout={handleLogout} isOpen={sidebarOpen} role={role} />
         
         <div className="flex flex-col flex-1 overflow-hidden">
-          <Header activeTab={activeTab} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} role={role} setRole={setRole} />
+          <Header activeTab={activeTab} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} role={role} setRole={setRole} onLogout={handleLogout} />
           
           <main className="flex-1 overflow-y-auto bg-slate-50 relative" ref={scrollRef}>
             <Breadcrumb activeTab={activeTab} setActiveTab={handleSetActiveTab} />
@@ -153,6 +173,7 @@ function App() {
                   <Route path="/user-detail" element={<UserDetail setActiveTab={handleSetActiveTab} />} />
                   <Route path="/role-config" element={<RoleConfig />} />
                   <Route path="/system-logs" element={<SystemLogs />} />
+                  <Route path="/template-management" element={<TemplateManagement setActiveTab={handleSetActiveTab} />} />
                   <Route path="/persetujuan-akhir" element={<PersetujuanAkhir setActiveTab={handleSetActiveTab} />} />
                   <Route path="/bh-dashboard" element={<BHDashboard setActiveTab={handleSetActiveTab} />} />
                   <Route path="/buat-produk-hukum" element={<BuatProdukHukum setActiveTab={handleSetActiveTab} />} />
