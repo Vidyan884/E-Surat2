@@ -18,8 +18,8 @@ const TemplateManagement = ({ setActiveTab }) => {
   const [showTutorialModal, setShowTutorialModal] = useState(false);
 
   // Form State
-  const [templateForm, setTemplateForm] = useState({ id: null, judul: '', kategori: '', konten: '' });
-  const [kopForm, setKopForm] = useState({ id: null, namaInstitusi: '', alamat: '', kontak: '', website: '', logoUrl: '', isActive: false });
+  const [templateForm, setTemplateForm] = useState({ id: null, judul: '', kategori: '', konten: '', kopSuratId: '' });
+  const [kopForm, setKopForm] = useState({ id: null, namaInstitusi: '', alamat: '', kontak: '', website: '', logoUrl: '', isActive: false, isImageOnly: false });
 
   useEffect(() => {
     fetchData();
@@ -28,12 +28,13 @@ const TemplateManagement = ({ setActiveTab }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // Selalu fetch kops untuk dropdown di form template
+      const kopRes = await fetch('/api/templates/kop', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (kopRes.ok) setKops(await kopRes.json());
+
       if (activeSubTab === 'template') {
         const res = await fetch('/api/templates', { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) setTemplates(await res.json());
-      } else {
-        const res = await fetch('/api/templates/kop', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) setKops(await res.json());
       }
     } catch (err) {
       addToast('Gagal memuat data', 'error');
@@ -151,10 +152,10 @@ const TemplateManagement = ({ setActiveTab }) => {
             className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
             onClick={() => {
               if (activeSubTab === 'template') {
-                setTemplateForm({ id: null, judul: '', kategori: '', konten: '' });
+                setTemplateForm({ id: null, judul: '', kategori: '', konten: '', kopSuratId: '' });
                 setShowTemplateModal(true);
               } else {
-                setKopForm({ id: null, namaInstitusi: '', alamat: '', kontak: '', website: '', logoUrl: '', isActive: false });
+                setKopForm({ id: null, namaInstitusi: '', alamat: '', kontak: '', website: '', logoUrl: '', isActive: false, isImageOnly: false });
                 setShowKopModal(true);
               }
             }}
@@ -202,7 +203,10 @@ const TemplateManagement = ({ setActiveTab }) => {
                 ) : templates.map(t => (
                   <tr key={t.id} className="hover:bg-slate-50">
                     <td className="px-4 py-4"><span className="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-emerald-100 text-emerald-700">{t.kategori}</span></td>
-                    <td className="px-4 py-4 text-sm font-bold text-slate-800">{t.judul}</td>
+                    <td className="px-4 py-4 text-sm font-bold text-slate-800">
+                      <div>{t.judul}</div>
+                      {t.kopSurat && <div className="text-[10px] text-slate-500 font-normal mt-1 border border-slate-200 bg-white px-1.5 py-0.5 rounded w-max">Kop: {t.kopSurat.namaInstitusi}</div>}
+                    </td>
                     <td className="px-4 py-4 text-xs text-slate-500 font-mono truncate max-w-[300px]">{t.konten}</td>
                     <td className="px-4 py-4 text-center">
                       <div className="flex justify-center gap-2">
@@ -237,10 +241,24 @@ const TemplateManagement = ({ setActiveTab }) => {
                         <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded w-max">Nonaktif</span>
                       }
                     </td>
-                    <td className="px-4 py-4 text-sm font-bold text-slate-800">{k.namaInstitusi}</td>
+                    <td className="px-4 py-4 text-sm font-bold text-slate-800">
+                      <div className="flex items-center gap-3">
+                        {k.logoUrl && <img src={k.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded-md border border-slate-200" />}
+                        <div className="flex flex-col">
+                          <span>{k.namaInstitusi}</span>
+                          {k.isImageOnly && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded w-max mt-1 font-semibold">GAMBAR PENUH</span>}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-4 text-xs text-slate-600">
-                      <div>{k.alamat}</div>
-                      <div className="text-slate-400">{k.kontak}</div>
+                      {!k.isImageOnly ? (
+                        <>
+                          <div>{k.alamat}</div>
+                          <div className="text-slate-400">{k.kontak}</div>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 italic">Hanya menampilkan gambar</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-center">
                       <div className="flex justify-center gap-2">
@@ -320,6 +338,15 @@ const TemplateManagement = ({ setActiveTab }) => {
                 <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={templateForm.kategori} onChange={e => setTemplateForm({...templateForm, kategori: e.target.value})} placeholder="Cth: keterangan, tugas, permohonan" />
               </div>
               <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Kop Surat Bawaan (Opsional)</label>
+                <select className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={templateForm.kopSuratId || ''} onChange={e => setTemplateForm({...templateForm, kopSuratId: e.target.value})}>
+                  <option value="">- Tidak menggunakan Kop khusus -</option>
+                  {kops.map(k => (
+                    <option key={k.id} value={k.id}>{k.namaInstitusi}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Konten / Isi Draf</label>
                 <textarea className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none min-h-[200px]" value={templateForm.konten} onChange={e => setTemplateForm({...templateForm, konten: e.target.value})} placeholder="Gunakan [Nama] untuk variabel dinamis..." />
               </div>
@@ -340,28 +367,75 @@ const TemplateManagement = ({ setActiveTab }) => {
               <button onClick={() => setShowKopModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-1 rounded-xl border border-slate-200 mb-4">
+                <button
+                  className={`py-2 text-sm font-bold rounded-lg transition-all ${!kopForm.isImageOnly ? 'bg-white text-emerald-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setKopForm({...kopForm, isImageOnly: false})}
+                >
+                  Teks Klasik
+                </button>
+                <button
+                  className={`py-2 text-sm font-bold rounded-lg transition-all ${kopForm.isImageOnly ? 'bg-white text-emerald-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setKopForm({...kopForm, isImageOnly: true})}
+                >
+                  Gambar Penuh
+                </button>
+              </div>
+
               <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4">
                 <input type="checkbox" id="is_active" checked={kopForm.isActive} onChange={e => setKopForm({...kopForm, isActive: e.target.checked})} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
                 <label htmlFor="is_active" className="text-sm font-bold text-blue-800 cursor-pointer">Jadikan Kop Surat Aktif (Hanya bisa 1 yang aktif)</label>
               </div>
               
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Nama Institusi (Baris 1 & 2)</label>
-                <textarea className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.namaInstitusi} onChange={e => setKopForm({...kopForm, namaInstitusi: e.target.value})} placeholder="Kementerian Pendidikan...&#10;Universitas..." rows={2} />
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  {kopForm.isImageOnly ? 'Judul Kop Surat (Hanya untuk identifikasi)' : 'Nama Institusi (Baris 1 & 2)'}
+                </label>
+                <textarea className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.namaInstitusi} onChange={e => setKopForm({...kopForm, namaInstitusi: e.target.value})} placeholder={kopForm.isImageOnly ? "Contoh: Kop Banner Dies Natalis" : "Kementerian Pendidikan...\nUniversitas..."} rows={kopForm.isImageOnly ? 1 : 2} />
               </div>
+
+              {!kopForm.isImageOnly && (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Alamat Lengkap</label>
+                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.alamat} onChange={e => setKopForm({...kopForm, alamat: e.target.value})} placeholder="Jl. Raya Kampus..." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Telepon / Fax</label>
+                      <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.kontak} onChange={e => setKopForm({...kopForm, kontak: e.target.value})} placeholder="Telp: (021) 123..." />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Website / Email</label>
+                      <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.website} onChange={e => setKopForm({...kopForm, website: e.target.value})} placeholder="Laman: www.univ.ac.id" />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Alamat Lengkap</label>
-                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.alamat} onChange={e => setKopForm({...kopForm, alamat: e.target.value})} placeholder="Jl. Raya Kampus..." />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Telepon / Fax</label>
-                  <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.kontak} onChange={e => setKopForm({...kopForm, kontak: e.target.value})} placeholder="Telp: (021) 123..." />
+                <label className="text-xs font-bold text-slate-700 block mb-1">{kopForm.isImageOnly ? 'Upload Gambar Kop Banner' : 'Upload Logo Institusi (Opsional)'}</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setKopForm({...kopForm, logoUrl: reader.result});
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" 
+                  />
+                  {kopForm.logoUrl && (
+                    <img src={kopForm.logoUrl} alt="Preview" className="h-10 w-10 object-contain rounded border border-slate-200 shrink-0" />
+                  )}
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Website / Email</label>
-                  <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none" value={kopForm.website} onChange={e => setKopForm({...kopForm, website: e.target.value})} placeholder="Laman: www.univ.ac.id" />
-                </div>
+                <p className="text-[10px] text-slate-500 mt-1">{kopForm.isImageOnly ? 'Upload gambar banner memanjang yang akan mengisi seluruh bagian atas surat.' : 'Upload logo kecil yang akan diletakkan di sisi kiri atas.'} Format: JPG/PNG.</p>
               </div>
             </div>
             <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">

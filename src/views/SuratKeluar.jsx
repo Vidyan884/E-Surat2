@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Filter, ChevronLeft, ChevronRight, Eye, Calendar } from 'lucide-react';
+import { ChevronDown, Filter, ChevronLeft, ChevronRight, Eye, Calendar, FileEdit } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const ITEMS_PER_PAGE = 4;
@@ -36,7 +36,7 @@ const StatusBadge = ({ type, text }) => {
 }
 
 const SuratKeluar = ({ setActiveTab }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [allSurat, setAllSurat] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,7 +160,7 @@ const SuratKeluar = ({ setActiveTab }) => {
                 </tr>
               ) : (
                 currentSurat.map((surat, idx) => (
-                  <tr key={surat.id} className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail')}>
+                  <tr key={surat.id} className="hover:bg-emerald-50/50 transition-colors group cursor-pointer" onClick={() => setActiveTab('surat-keluar-detail', { suratId: surat.id })}>
                     <td className="px-4 py-4 text-sm text-slate-500 text-center font-medium align-top">
                       {startIdx + idx + 1}
                     </td>
@@ -183,10 +183,17 @@ const SuratKeluar = ({ setActiveTab }) => {
                     <td className="px-4 py-4 align-top">
                       <StatusBadge type={surat.statusColor} text={surat.status} />
                     </td>
-                    <td className="px-4 py-4 text-center align-top">
-                      <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail'); }} title="Lihat Detail">
-                        <Eye size={18} />
-                      </button>
+                    <td className="px-4 py-4 text-center align-top whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1">
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('surat-keluar-detail', { suratId: surat.id }); }} title="Lihat Detail">
+                          <Eye size={18} />
+                        </button>
+                        {surat.authorId === user?.id && ['Draft', 'Perlu Perbaikan', 'Review'].includes(surat.status) && (
+                          <button className="p-1.5 rounded-lg text-slate-400 hover:text-blue-700 hover:bg-blue-100 transition-colors inline-flex" onClick={(e) => { e.stopPropagation(); setActiveTab('buat-surat-keluar', { editSuratId: surat.id }); }} title="Edit Surat">
+                            <FileEdit size={18} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

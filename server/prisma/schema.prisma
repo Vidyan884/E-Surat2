@@ -6,20 +6,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  username  String   @unique
-  password  String
-  
+  id       String @id @default(uuid())
+  name     String
+  username String @unique
+  password String
+
   // Relations
   roles           Role[]
-  disposisiMasuk  Disposisi[] @relation("PenerimaDisposisi")
-  disposisiKeluar Disposisi[] @relation("PengirimDisposisi")
+  disposisiMasuk  Disposisi[]   @relation("PenerimaDisposisi")
+  disposisiKeluar Disposisi[]   @relation("PengirimDisposisi")
   suratKeluar     SuratKeluar[]
   produkHukum     ProdukHukum[]
 
@@ -28,100 +28,115 @@ model User {
 }
 
 model Role {
-  id    String @id @default(uuid())
-  name  String @unique
-  users User[]
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  color       String? @default("#64748b")
+  permissions String? @db.Text // JSON string
+  users       User[]
 }
 
 model SuratMasuk {
-  id          String   @id @default(uuid())
-  noAgenda    String?  @unique
-  tanggal     DateTime
-  noSurat     String
-  perihal     String
-  asal        String
-  sifat       String   // Biasa, Penting, Segera
-  status      String   @default("Menunggu Disposisi") // Menunggu Disposisi, Proses, Selesai
-  attachment  String?
+  id         String   @id @default(uuid())
+  noAgenda   String?  @unique
+  tanggal    DateTime
+  noSurat    String
+  perihal    String
+  asal       String
+  sifat      String // Biasa, Penting, Segera
+  status     String   @default("Menunggu Disposisi") // Menunggu Disposisi, Proses, Selesai
+  attachment String?
 
-  disposisi   Disposisi[]
+  disposisi Disposisi[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Disposisi {
-  id           String   @id @default(uuid())
-  arahan       String
-  batasWaktu   DateTime?
-  status       String   @default("Menunggu Tindak Lanjut") // Menunggu Tindak Lanjut, Selesai
+  id         String    @id @default(uuid())
+  arahan     String
+  batasWaktu DateTime?
+  status     String    @default("Menunggu Tindak Lanjut") // Menunggu Tindak Lanjut, Selesai
 
   suratMasukId String
   suratMasuk   SuratMasuk @relation(fields: [suratMasukId], references: [id])
 
-  pengirimId   String
-  pengirim     User @relation("PengirimDisposisi", fields: [pengirimId], references: [id])
+  pengirimId String
+  pengirim   User   @relation("PengirimDisposisi", fields: [pengirimId], references: [id])
 
-  penerimaId   String
-  penerima     User @relation("PenerimaDisposisi", fields: [penerimaId], references: [id])
+  penerimaId String
+  penerima   User   @relation("PenerimaDisposisi", fields: [penerimaId], references: [id])
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SuratKeluar {
-  id          String   @id @default(uuid())
-  noAgenda    String?  @unique
-  tanggal     DateTime @default(now())
-  noSurat     String?  // Akan diisi setelah verifikasi
-  perihal     String
-  tujuan      String
-  sifat       String
-  status      String   @default("Draft") // Draft, Review, Menunggu Penomoran, Menunggu TTE, Selesai
-  attachment  String?
-  
-  authorId    String
-  author      User @relation(fields: [authorId], references: [id])
+  id         String   @id @default(uuid())
+  noAgenda   String?  @unique
+  tanggal    DateTime @default(now())
+  noSurat    String? // Akan diisi setelah verifikasi
+  kategori   String? // Untuk menentukan format template
+  perihal    String
+  tujuan     String
+  sifat      String
+  status     String   @default("Draft") // Draft, Review, Menunggu Penomoran, Menunggu TTE, Selesai
+  isiSurat   String?  @db.Text // Isi teks draf surat
+  attachment String? // File lampiran (PDF/DOC)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  kopSuratId String?
+  kopSurat   KopSurat? @relation(fields: [kopSuratId], references: [id])
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ProdukHukum {
-  id          String   @id @default(uuid())
-  noRegister  String?  @unique
-  jenis       String   // Peraturan Rektor, Keputusan Rektor, Surat Edaran, dll
-  judul       String
-  tentang     String
-  status      String   @default("Draft") // Draft, Harmonisasi, Paraf, TTE Rektor, Selesai
-  attachment  String?
+  id         String  @id @default(uuid())
+  noRegister String? @unique
+  jenis      String // Peraturan Rektor, Keputusan Rektor, Surat Edaran, dll
+  judul      String
+  tentang    String
+  status     String  @default("Draft") // Draft, Harmonisasi, Paraf, TTE Rektor, Selesai
+  attachment String?
 
-  authorId    String
-  author      User @relation(fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TemplateSurat {
-  id        String   @id @default(uuid())
-  kategori  String
-  judul     String
-  konten    String
-  
+  id       String @id @default(uuid())
+  kategori String
+  judul    String
+  konten   String @db.Text
+
+  kopSuratId String?
+  kopSurat   KopSurat? @relation(fields: [kopSuratId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model KopSurat {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   namaInstitusi String
-  alamat        String
-  kontak        String
+  alamat        String?
+  kontak        String?
   website       String?
-  logoUrl       String?
-  isActive      Boolean  @default(false)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  logoUrl       String? @db.LongText
+  isActive      Boolean @default(false)
+  isImageOnly   Boolean @default(false)
+
+  templateSurats TemplateSurat[]
+  suratKeluars   SuratKeluar[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

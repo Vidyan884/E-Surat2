@@ -165,9 +165,6 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout, isOpen, role }) => {
       </nav>
 
       <div className="py-3 mx-4 border-t border-slate-200 flex flex-col">
-        {['admin-teknis', 'admin'].includes(role) && (
-          <BottomLink icon={Building2} label="Biro Hukum Panel" onClick={(e) => { e.preventDefault(); setActiveTab('bh-dashboard'); }} />
-        )}
         <BottomLink icon={HelpCircle} label={['biro-hukum', 'legal'].includes(role) ? "Help Center" : "Tracking Publik"} onClick={(e) => { e.preventDefault(); setActiveTab('tracking'); }} />
         <BottomLink icon={LogOut} label="Logout" onClick={handleLogoutClick} />
       </div>

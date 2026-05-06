@@ -48,10 +48,10 @@ function App() {
 
   const activeTab = pathToTab(location.pathname);
 
-  const handleSetActiveTab = (tab) => {
+  const handleSetActiveTab = (tab, state = null) => {
     setIsLoading(true);
     const path = tab === 'dashboard' ? '/' : `/${tab}`;
-    navigate(path);
+    navigate(path, { state });
     setSidebarOpen(false);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   };

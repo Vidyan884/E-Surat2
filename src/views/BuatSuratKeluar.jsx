@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ChevronDown, ArrowRight, ArrowLeft, Plus, X, Upload, FileText, Check, Calendar, Edit3 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,36 +11,78 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
   const { token } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const location = useLocation();
+  const editSuratId = location.state?.editSuratId;
+  
   const [formData, setFormData] = useState({
     kategori: '',
     tujuan: '',
     perihal: '',
     sifat: 'biasa',
     isiRingkas: '',
+    kopSuratId: '',
   });
   
   const [dbTemplates, setDbTemplates] = useState([]);
-  
-  // Fetch templates on mount
-  React.useEffect(() => {
-    const fetchTemplates = async () => {
-      try {
-        const response = await fetch('/api/templates', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          setDbTemplates(await response.json());
-        }
-      } catch (err) {
-        console.error('Failed to load templates:', err);
-      }
-    };
-    fetchTemplates();
-  }, [token]);
-
+  const [dbKops, setDbKops] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [catatanTambahan, setCatatanTambahan] = useState('');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+  // Fetch surat if in edit mode
+  React.useEffect(() => {
+    if (!editSuratId) return;
+    const fetchSurat = async () => {
+      try {
+        const response = await fetch(`/api/surat-keluar/${editSuratId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setFormData({
+            kategori: data.kategori || '',
+            tujuan: data.tujuan || '',
+            perihal: data.perihal || '',
+            sifat: data.sifat || 'biasa',
+            isiRingkas: data.isiSurat || '',
+            kopSuratId: data.kopSuratId || '',
+          });
+          if (data.attachment) {
+            setUploadedFile({ name: data.attachment, size: '-', type: '-' });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load surat for editing:', err);
+      }
+    };
+    fetchSurat();
+  }, [editSuratId, token]);
+  
+  // Fetch templates and kops on mount
+  React.useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [tplRes, kopRes] = await Promise.all([
+          fetch('/api/templates', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/templates/kop', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (tplRes.ok) setDbTemplates(await tplRes.json());
+        if (kopRes.ok) {
+          const kops = await kopRes.json();
+          setDbKops(kops);
+          
+          // Jika ini buat baru dan ada kop default aktif, otomatis pilih
+          if (!editSuratId) {
+            const activeKop = kops.find(k => k.isActive);
+            if (activeKop) setFormData(prev => ({ ...prev, kopSuratId: activeKop.id }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load initial data:', err);
+      }
+    };
+    fetchInitialData();
+  }, [token, editSuratId]);
 
   const handleSubmit = async (status) => {
     if (!formData.kategori || !formData.tujuan || !formData.perihal) {
@@ -49,8 +92,11 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
     
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/surat-keluar', {
-        method: 'POST',
+      const url = editSuratId ? `/api/surat-keluar/${editSuratId}` : '/api/surat-keluar';
+      const method = editSuratId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -58,6 +104,7 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
         body: JSON.stringify({
           ...formData,
           status,
+          isiSurat: formData.isiRingkas || null,
           attachment: uploadedFile ? uploadedFile.name : null
         })
       });
@@ -92,9 +139,12 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
   };
 
   const selectTemplate = (template) => {
-    handleChange('isiRingkas', template.content);
+    handleChange('isiRingkas', template.konten);
     if (!formData.kategori) {
       handleChange('kategori', template.kategori);
+    }
+    if (template.kopSuratId) {
+      handleChange('kopSuratId', template.kopSuratId);
     }
     setShowTemplateModal(false);
     addToast('Template berhasil dimuat.', 'success');
@@ -120,8 +170,8 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60 pointer-events-none"></div>
         <div className="relative z-10">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">Buat Surat Keluar Baru</h1>
-          <p className="text-slate-500 mt-1.5 text-sm md:text-base max-w-lg">Inisiasi pembuatan draf surat keluar untuk proses penomoran dan pengiriman.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">{editSuratId ? 'Edit Surat Keluar' : 'Buat Surat Keluar Baru'}</h1>
+          <p className="text-slate-500 mt-1.5 text-sm md:text-base max-w-lg">{editSuratId ? 'Ubah informasi dan draf dokumen untuk surat ini.' : 'Inisiasi pembuatan draf surat keluar untuk proses penomoran dan pengiriman.'}</p>
         </div>
       </div>
 
@@ -192,6 +242,26 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
                       <option value="pengantar">Surat Pengantar</option>
                       <option value="keterangan">Surat Keterangan</option>
                       <option value="lainnya">Lainnya</option>
+                    </select>
+                    <ChevronDown size={18} className="absolute right-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Kop Surat */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700">Kop Surat / Header Institusi</label>
+                  <div className="relative flex items-center">
+                    <select 
+                      value={formData.kopSuratId}
+                      onChange={(e) => handleChange('kopSuratId', e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 appearance-none transition-all cursor-pointer"
+                    >
+                      <option value="" disabled hidden>Pilih kop surat...</option>
+                      {dbKops.map(kop => (
+                        <option key={kop.id} value={kop.id}>
+                          {kop.namaInstitusi} {kop.isActive ? '(Aktif Default)' : ''}
+                        </option>
+                      ))}
                     </select>
                     <ChevronDown size={18} className="absolute right-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -442,7 +512,7 @@ const BuatSuratKeluar = ({ setActiveTab }) => {
               ) : (
                 <button 
                   className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  onClick={() => handleSubmit('Menunggu Verifikasi')}
+                  onClick={() => handleSubmit('Review')}
                   disabled={isSubmitting}
                 >
                   <Check size={16} strokeWidth={3} />

@@ -1,5 +1,6 @@
-import React from 'react';
-import { Mail, ArrowUpRight, TrendingUp, Inbox, Zap, ArrowRight, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, ArrowUpRight, TrendingUp, Inbox, Zap, ArrowRight, AlertCircle, Loader } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const StatCard = ({ title, value, icon: Icon, indicator, colorStyle, isDanger, onClick }) => {
   const bgColors = {
@@ -74,18 +75,9 @@ const TaskItem = ({ status, time, title, desc, refNumber, statusType, onClick })
   );
 };
 
-const VolumeChart = () => {
-  const data = [
-    { day: 'Sen', masuk: 120, keluar: 90 },
-    { day: 'Sel', masuk: 120, keluar: 75 },
-    { day: 'Rab', masuk: 120, keluar: 110 },
-    { day: 'Kam', masuk: 120, keluar: 85 },
-    { day: 'Jum', masuk: 120, keluar: 108 },
-    { day: 'Sab', masuk: 55, keluar: 60 },
-    { day: 'Min',  masuk: 45, keluar: 45 },
-  ];
+const VolumeChart = ({ data }) => {
 
-  const maxVal = 130;
+  const maxVal = Math.max(10, ...data.map(d => Math.max(d.masuk, d.keluar))) * 1.2;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 h-full flex flex-col">
@@ -139,6 +131,43 @@ const VolumeChart = () => {
 };
 
 const MainDashboard = ({ setActiveTab }) => {
+  const { token } = useAuth();
+  const [dashboardData, setDashboardData] = useState({
+    stats: { totalSuratMasuk: 0, totalSuratKeluar: 0, disposisiMenunggu: 0, rataRataRespon: 0 },
+    tasks: [],
+    chartData: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/dashboard/stats', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          setDashboardData(await response.json());
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data dashboard', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, [token]);
+
+  const currentMonthName = new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center text-slate-500">
+        <Loader size={48} className="animate-spin mb-4 text-emerald-600" />
+        <p>Memuat statistik dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -152,7 +181,7 @@ const MainDashboard = ({ setActiveTab }) => {
         </div>
         <div className="relative z-10 flex flex-col items-start sm:items-end bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider">PERIODE AKTIF</span>
-          <span className="text-sm font-bold text-emerald-800">Oktober 2026</span>
+          <span className="text-sm font-bold text-emerald-800">{currentMonthName}</span>
         </div>
       </div>
 
@@ -160,31 +189,31 @@ const MainDashboard = ({ setActiveTab }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
         <StatCard 
           title="Total Surat Masuk" 
-          value="1,248" 
+          value={dashboardData.stats.totalSuratMasuk} 
           icon={Mail} 
-          indicator="+12%" 
+          indicator="" 
           colorStyle="bg-blue"
           onClick={() => setActiveTab('surat-masuk')}
         />
         <StatCard 
           title="Surat Keluar" 
-          value="856" 
+          value={dashboardData.stats.totalSuratKeluar} 
           icon={ArrowUpRight} 
-          indicator="+5%" 
+          indicator="" 
           colorStyle="bg-green"
           onClick={() => setActiveTab('surat-keluar')}
         />
         <StatCard 
-          title="Disposisi Menunggu" 
-          value="24" 
+          title="Tugas Menunggu" 
+          value={dashboardData.stats.disposisiMenunggu} 
           icon={Inbox} 
-          isDanger={true}
+          isDanger={dashboardData.stats.disposisiMenunggu > 0}
           colorStyle="bg-red"
           onClick={() => setActiveTab('surat-masuk')}
         />
         <StatCard 
           title="Rata-rata Respon" 
-          value="1.2" 
+          value={dashboardData.stats.rataRataRespon} 
           icon={Zap} 
           colorStyle="bg-orange"
         />
@@ -204,31 +233,27 @@ const MainDashboard = ({ setActiveTab }) => {
             </a>
           </div>
           
-          <div className="flex flex-col gap-3">
-            <TaskItem 
-              status="MENDESAK" 
-              statusType="danger"
-              time="2 jam yang lalu"
-              title="Persetujuan MoU Universitas Kebangsaan"
-              desc="Mohon arahan dan tanda tangan digital untuk draft MoU kerjasama pertukaran pelajar..."
-              refNumber="Ref: 045/UNIA/KS/X/2023"
-              onClick={() => setActiveTab('surat-detail')}
-            />
-            <TaskItem 
-              status="PERLU REVIEW" 
-              statusType="warning"
-              time="Kemarin"
-              title="Laporan Pertanggungjawaban Dies Natalis"
-              desc="Review laporan keuangan dan kegiatan panitia Dies Natalis ke-45 sebelum diajukan ke rektor..."
-              refNumber="Ref: 112/UNIA/LPJ/IX/2023"
-              onClick={() => setActiveTab('surat-detail')}
-            />
+          <div className="flex flex-col gap-3 overflow-y-auto max-h-[300px] pr-2">
+            {dashboardData.tasks.length === 0 ? (
+              <div className="text-center text-sm text-slate-500 py-8">Tidak ada tugas perhatian.</div>
+            ) : dashboardData.tasks.map(task => (
+              <TaskItem 
+                key={task.id}
+                status={task.status} 
+                statusType={task.statusType}
+                time={task.time}
+                title={task.title}
+                desc={task.desc}
+                refNumber={task.refNumber}
+                onClick={() => setActiveTab(task.type === 'surat-masuk' ? 'surat-detail' : 'surat-keluar-detail', { id: task.id })}
+              />
+            ))}
           </div>
         </div>
 
         {/* Chart */}
         <div className="lg:col-span-2">
-          <VolumeChart />
+          <VolumeChart data={dashboardData.chartData} />
         </div>
       </div>
     </div>

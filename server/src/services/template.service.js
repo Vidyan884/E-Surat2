@@ -4,6 +4,7 @@ class TemplateService {
   // Templates
   async getTemplates() {
     return await prisma.templateSurat.findMany({
+      include: { kopSurat: true },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -13,7 +14,8 @@ class TemplateService {
       data: {
         kategori: data.kategori,
         judul: data.judul,
-        konten: data.konten
+        konten: data.konten,
+        kopSuratId: data.kopSuratId || null
       }
     });
   }
@@ -24,7 +26,8 @@ class TemplateService {
       data: {
         kategori: data.kategori,
         judul: data.judul,
-        konten: data.konten
+        konten: data.konten,
+        kopSuratId: data.kopSuratId !== undefined ? data.kopSuratId : undefined
       }
     });
   }
@@ -55,11 +58,12 @@ class TemplateService {
     return await prisma.kopSurat.create({
       data: {
         namaInstitusi: data.namaInstitusi,
-        alamat: data.alamat,
-        kontak: data.kontak,
+        alamat: data.alamat || null,
+        kontak: data.kontak || null,
         website: data.website || null,
         logoUrl: data.logoUrl || null,
-        isActive: data.isActive || false
+        isActive: data.isActive || false,
+        isImageOnly: data.isImageOnly || false
       }
     });
   }
@@ -72,11 +76,12 @@ class TemplateService {
       where: { id },
       data: {
         namaInstitusi: data.namaInstitusi,
-        alamat: data.alamat,
-        kontak: data.kontak,
+        alamat: data.alamat || null,
+        kontak: data.kontak || null,
         website: data.website || null,
         logoUrl: data.logoUrl || null,
-        isActive: data.isActive
+        isActive: data.isActive,
+        isImageOnly: data.isImageOnly !== undefined ? data.isImageOnly : false
       }
     });
   }

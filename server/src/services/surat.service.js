@@ -47,17 +47,65 @@ class SuratService {
     });
   }
 
+  async getSuratKeluarById(id) {
+    return await prisma.suratKeluar.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: { id: true, name: true, username: true, roles: { select: { name: true } } }
+        },
+        kopSurat: true
+      }
+    });
+  }
+
   async createSuratKeluar(authorId, data) {
     return await prisma.suratKeluar.create({
       data: {
+        kategori: data.kategori,
         perihal: data.perihal,
         tujuan: data.tujuan,
         sifat: data.sifat,
         status: data.status || 'Draft',
+        isiSurat: data.isiSurat,
         attachment: data.attachment,
+        kopSuratId: data.kopSuratId || null,
         tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
         authorId
       }
+    });
+  }
+
+  async updateSuratKeluar(id, data) {
+    return await prisma.suratKeluar.update({
+      where: { id },
+      data: {
+        kategori: data.kategori,
+        perihal: data.perihal,
+        tujuan: data.tujuan,
+        sifat: data.sifat,
+        status: data.status,
+        isiSurat: data.isiSurat,
+        attachment: data.attachment,
+        kopSuratId: data.kopSuratId !== undefined ? data.kopSuratId : undefined
+      }
+    });
+  }
+
+  async updateSuratKeluarStatus(id, status) {
+    const validStatuses = ['Draft', 'Review', 'Menunggu Penomoran', 'Menunggu TTE', 'Selesai', 'Perlu Perbaikan'];
+    if (!validStatuses.includes(status)) {
+      throw new Error(`Status tidak valid. Pilihan: ${validStatuses.join(', ')}`);
+    }
+    return await prisma.suratKeluar.update({
+      where: { id },
+      data: { status }
+    });
+  }
+
+  async deleteSuratKeluar(id) {
+    return await prisma.suratKeluar.delete({
+      where: { id }
     });
   }
 }
